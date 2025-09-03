@@ -1,0 +1,23 @@
+# Go caches and modules
+.gocache/
+
+# Build artifacts
+bin/
+dist/
+*.exe
+*.out
+*.test
+coverage.out
+*.prof
+
+# Local environment
+.env
+.env.*
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Legacy data snapshots (from CSV sink)
+data/
