@@ -77,7 +77,6 @@ jobs:
             if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
               echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             fi
-            sudo mkdir -p /opt/toggl-scraper
             # Expect an env file already on the server at /opt/toggl-scraper/.env
             # with TOGGL_API_TOKEN, MYSQL_DSN, and optional SYNC_TZ.
             docker pull "$IMAGE"
