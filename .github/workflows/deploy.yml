@@ -72,7 +72,8 @@ jobs:
           command_timeout: 20m
           script: |
             set -euo pipefail
-            IMAGE="ghcr.io/${{ github.repository }}:latest"
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE="ghcr.io/$REPO_LOWER:latest"
             # Optional GHCR login if your image is private
             if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
               echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
