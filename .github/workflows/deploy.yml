@@ -83,6 +83,7 @@ jobs:
             docker pull "$IMAGE"
             docker rm -f toggl-scraper || true
             docker run -d --restart unless-stopped \
+              --network db \
               --name toggl-scraper \
               --env-file /opt/toggl-scraper/.env \
               "$IMAGE"
