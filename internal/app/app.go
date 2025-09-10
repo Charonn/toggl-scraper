@@ -2,7 +2,9 @@ package app
 
 import (
     "context"
+    "errors"
     "log/slog"
+    "sync/atomic"
     "time"
 
     msql "toggl-scraper/internal/adapter/mysql"
@@ -16,6 +18,8 @@ import (
 type App struct {
     log  *slog.Logger
     uc   *usecase.SyncUseCase
+    // running is 0 when idle, 1 when a sync is in progress.
+    running atomic.Int32
 }
 
 func New(log *slog.Logger, cfg config.Config) (*App, error) {
@@ -39,5 +43,16 @@ func New(log *slog.Logger, cfg config.Config) (*App, error) {
 }
 
 func (a *App) RunOnce(ctx context.Context, from, to time.Time) error {
+    // Prevent overlapping runs across schedulers and HTTP triggers.
+    if !a.tryBeginRun() {
+        return errors.New("sync already running")
+    }
+    defer a.endRun()
     return a.uc.Run(ctx, from, to)
 }
+
+func (a *App) tryBeginRun() bool {
+    return a.running.CompareAndSwap(0, 1)
+}
+
+func (a *App) endRun() { a.running.Store(0) }

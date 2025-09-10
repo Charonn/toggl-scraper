@@ -28,6 +28,7 @@ Flags:
 - `--once`: Run a single sync and exit
 - `--interval=15m`: Interval for periodic syncs (ignored with `--once`)
 - `--from` / `--to`: RFC3339 time window (defaults to `[now-24h, now]`)
+- `--http=:8085`: Start an HTTP trigger server (disabled by default)
 - `-v`: Verbose logging
 
 ## Usage
@@ -64,6 +65,21 @@ TOGGL_API_TOKEN=... MYSQL_DSN='user:pass@tcp(host:3306)/db?parseTime=true' \
 go run ./cmd/toggl-scraper --once \
   --from 2025-08-01T00:00:00Z --to 2025-08-16T00:00:00Z
 ```
+
+HTTP trigger (optional):
+
+- Start the app with `--http=:8085` to enable a simple trigger server.
+- Trigger a sync via curl with `from`/`to` in RFC3339 or `YYYY-MM-DD`:
+
+```
+curl "http://localhost:8085/sync?from=2025-08-01&to=2025-08-15"
+# or explicit timestamps
+curl "http://localhost:8085/sync?from=2025-08-01T00:00:00Z&to=2025-08-16T00:00:00Z"
+```
+
+Notes:
+- Missing params default to `[now-24h, now]`.
+- If a sync is already running, the endpoint returns HTTP 409.
 
 ## Docker
 
@@ -146,3 +162,20 @@ go test -tags=e2e ./e2e -v
 ```
 
 Note: The e2e tests require fetching modules and pulling a Docker image (`mysql:8.0`).
+
+### HTTP Trigger in Docker
+
+- The image exposes port `8085`. Start the container with the HTTP server enabled and publish the port:
+
+```
+make docker-run E="-e TOGGL_API_TOKEN=YOUR_TOKEN \
+  -e MYSQL_DSN='user:pass@tcp(mysql:3306)/db?parseTime=true' \
+  -p 8085:8085" \
+  ARGS="--http=:8085"
+```
+
+Then trigger:
+
+```
+curl "http://localhost:8085/sync?from=2025-08-01&to=2025-08-15"
+```

@@ -4,6 +4,7 @@ import (
     "context"
     "flag"
     "log/slog"
+    "net/http"
     "os"
     "os/signal"
     "syscall"
@@ -20,6 +21,7 @@ func main() {
     daily := flag.Bool("daily", false, "Run at local midnight each day (uses SYNC_TZ, default UTC)")
     from := flag.String("from", "", "ISO8601 start time (optional, default: now - 24h)")
     to := flag.String("to", "", "ISO8601 end time (optional, default: now)")
+    httpAddr := flag.String("http", "", "Start HTTP trigger server on address (e.g., :8080)")
     verbose := flag.Bool("v", false, "Enable verbose logging")
     flag.Parse()
 
@@ -58,6 +60,24 @@ func main() {
     // Context with signal handling
     ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
     defer stop()
+
+    // Optional HTTP trigger server
+    var httpSrv *http.Server
+    if *httpAddr != "" {
+        httpSrv = application.HTTPServer(*httpAddr)
+        go func() {
+            logger.Info("starting http server", slog.String("addr", *httpAddr))
+            if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+                logger.Error("http server error", slog.String("error", err.Error()))
+            }
+        }()
+        defer func() {
+            shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+            defer cancel()
+            _ = httpSrv.Shutdown(shutdownCtx)
+            logger.Info("http server stopped")
+        }()
+    }
 
     if *once {
         if err := application.RunOnce(ctx, fromTime, toTime); err != nil {

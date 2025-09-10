@@ -51,8 +51,8 @@ clean: ## Remove build artifacts
 docker-build: ## Build Docker image
 	docker build -t toggl-scraper:latest .
 
-docker-run: ## Run Docker container (set env via E=...)
-	# Example usage:
-	# make docker-run E="-e TOGGL_API_TOKEN=... -e MYSQL_DSN=... -e SYNC_TZ=Europe/Berlin"
-	docker run --rm --name toggl-scraper \
-		$(E) toggl-scraper:latest
+docker-run: ## Run Docker container (set docker args via E=..., app flags via ARGS="--http=:8085")
+    # Example usage:
+    # make docker-run E="-e TOGGL_API_TOKEN=... -e MYSQL_DSN=... -e SYNC_TZ=Europe/Berlin -p 8085:8085" ARGS="--http=:8085"
+    docker run --rm --name toggl-scraper \
+        $(E) toggl-scraper:latest $(ARGS)

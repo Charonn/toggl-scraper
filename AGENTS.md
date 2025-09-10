@@ -59,6 +59,7 @@ Go version: code targets Go 1.25. For constrained environments, the Makefile run
 - `--daily`: runs at local midnight (per `SYNC_TZ`), syncing the previous 24 hours (previous local day) as `[midnight-24h, midnight)`.
 - `--once`: runs a single sync for the provided window (`--from`, `--to`), defaulting to last 24 hours.
 - `--interval`: periodic sync every N; kept for manual/testing scenarios.
+- `--http=:8080`: starts a simple HTTP trigger server with `/sync`.
 
 Date parsing:
 - `--from`/`--to` accept RFC3339 or `YYYY-MM-DD`.
@@ -99,6 +100,10 @@ Keep dependencies minimal; prefer stdlib first.
 - On startup in `--daily` mode, the process waits until the next local midnight.
 - Consider adding an optional “initial catch-up” if users need immediate sync on container start.
 - Monitor via container logs; no metrics are included by default to keep dependencies minimal.
+- Optional HTTP trigger: If started with `--http`, an in-process HTTP server exposes:
+  - `GET /healthz` → 200 `ok`
+  - `GET/POST /sync?from=...&to=...` → triggers a sync for the provided window. Parameters accept RFC3339 or `YYYY-MM-DD`. Missing params default to `[now-24h, now]`.
+  - Concurrency: the app prevents overlapping runs; if a run is in progress, `/sync` returns HTTP 409.
 
 ## Common Pitfalls
 - Toolchain downloads blocked: use the Makefile defaults; for production, install Go 1.25.
@@ -110,4 +115,3 @@ Keep dependencies minimal; prefer stdlib first.
 - If adding a new sink or source, define/extend ports first; then implement adapters.
 - Update README and this AGENTS.md when behavior or interfaces change.
 - Avoid adding non-essential libraries; justify any new dependency.
-
