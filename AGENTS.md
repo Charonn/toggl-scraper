@@ -3,18 +3,18 @@
 This document is for future agents and contributors working on this repository. It explains the project intent, architecture, operational model, and contribution expectations so that changes remain consistent, safe, and maintainable.
 
 ## Mission
-- Scrape Toggl Track time entries and sync them into a MySQL table that Metabase reads from.
+- Scrape Toggl Track time entries and related project metadata, syncing both into MySQL tables that Metabase reads from.
 - Favor the Go standard library and a clean architecture (domain → ports → adapters → use cases → wiring).
 - Provide an idempotent, reliable daily sync that runs at local midnight (configurable timezone).
 
 ## Architecture
 - Domain: `internal/domain`
-  - Core entities (e.g., `TimeEntry`).
+  - Core entities (e.g., `TimeEntry`, `Project`).
 - Ports: `internal/ports`
   - Interfaces for external integrations (`TogglClient`, `Sink`).
 - Adapters: `internal/adapter`
-  - `toggl/`: HTTP client for Toggl v9 (`/api/v9/me/time_entries`).
-  - `mysql/`: `database/sql` sink that upserts into `toggl_time_entries`.
+  - `toggl/`: HTTP client for Toggl v9 (`/api/v9/me/time_entries`, `/api/v9/me/projects`).
+  - `mysql/`: `database/sql` sink that upserts into `toggl_time_entries` and `toggl_projects`.
 - Use Cases: `internal/usecase`
   - `SyncUseCase` orchestrates fetching from Toggl and writing to the sink.
 - App wiring: `internal/app`
@@ -23,16 +23,27 @@ This document is for future agents and contributors working on this repository. 
   - Flags (`--once`, `--daily`, `--interval`, `--from`, `--to`, `-v`), signal handling, scheduling.
 
 ## Data Model (MySQL)
-Table: `toggl_time_entries` (auto-created)
-- `id BIGINT PRIMARY KEY`
-- `description TEXT`
-- `project_id BIGINT NULL`
-- `workspace_id BIGINT NULL`
-- `tags TEXT` (JSON-encoded array)
-- `start DATETIME(6) NOT NULL` (UTC)
-- `stop DATETIME(6) NULL` (UTC)
-- `duration_sec BIGINT NOT NULL`
-Upsert: `INSERT ... ON DUPLICATE KEY UPDATE` for idempotency.
+Tables:
+- `toggl_time_entries`
+  - `id BIGINT PRIMARY KEY`
+  - `description TEXT`
+  - `project_id BIGINT NULL`
+  - `workspace_id BIGINT NULL`
+  - `tags TEXT` (JSON-encoded array)
+  - `start DATETIME(6) NOT NULL` (UTC)
+  - `stop DATETIME(6) NULL` (UTC)
+  - `duration_sec BIGINT NOT NULL`
+  - Upsert: `INSERT ... ON DUPLICATE KEY UPDATE` for idempotency.
+- `toggl_projects`
+  - `id BIGINT PRIMARY KEY`
+  - `workspace_id BIGINT NOT NULL`
+  - `name TEXT NOT NULL`
+  - `active TINYINT(1) NOT NULL`
+  - `is_private TINYINT(1) NOT NULL`
+  - `color VARCHAR(32) NOT NULL`
+  - `client_id BIGINT NULL`
+  - `at DATETIME(6) NOT NULL`
+  - Upsert for idempotency mirrors the time entry sink strategy.
 
 ## Build & Run (Local)
 Use the Makefile targets. Defaults keep caches in-repo and avoid toolchain downloads.
@@ -92,7 +103,8 @@ Keep dependencies minimal; prefer stdlib first.
 - Config: read via env; validate early; provide sensible defaults.
 
 ## API Notes (Toggl)
-- Endpoint: `GET /api/v9/me/time_entries?start_date=RFC3339&end_date=RFC3339`
+- Time entries: `GET /api/v9/me/time_entries?start_date=RFC3339&end_date=RFC3339`
+- Projects: `GET /api/v9/me/projects` (or workspace-scoped `GET /api/v9/workspaces/{workspace_id}/projects` when a workspace is configured)
 - Auth: HTTP Basic with `token:api_token`.
 - Running entries may have negative duration; we store the API-provided value as-is.
 

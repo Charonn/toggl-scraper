@@ -7,7 +7,7 @@ This project uses a clean architecture layout: domain models, ports (interfaces)
 ## Structure
 
 - `cmd/toggl-scraper`: CLI entrypoint
-- `internal/domain`: Domain entities (e.g., `TimeEntry`)
+- `internal/domain`: Domain entities (e.g., `TimeEntry`, `Project`)
 - `internal/ports`: Interfaces for Toggl client and Sink
 - `internal/adapter/toggl`: HTTP client for Toggl v9
 - `internal/adapter/mysql`: MySQL sink adapter (upserts)
@@ -45,8 +45,11 @@ Run periodically every 15 minutes:
 TOGGL_API_TOKEN=... go run ./cmd/toggl-scraper --interval=15m
 ```
 
-Migrations run automatically at startup and create the table `toggl_time_entries` with columns:
-`id BIGINT PRIMARY KEY, description TEXT, project_id BIGINT NULL, workspace_id BIGINT NULL, tags TEXT, start DATETIME(6) NOT NULL, stop DATETIME(6) NULL, duration_sec BIGINT NOT NULL`.
+Migrations run automatically at startup and create reference tables:
+
+- `toggl_time_entries`: `id BIGINT PRIMARY KEY, description TEXT, project_id BIGINT NULL, workspace_id BIGINT NULL, tags TEXT, start DATETIME(6) NOT NULL, stop DATETIME(6) NULL, duration_sec BIGINT NOT NULL`
+- `toggl_projects`: `id BIGINT PRIMARY KEY, workspace_id BIGINT NOT NULL, name TEXT NOT NULL, active TINYINT(1) NOT NULL, is_private TINYINT(1) NOT NULL, color VARCHAR(32) NOT NULL, client_id BIGINT NULL, at DATETIME(6) NOT NULL`
+
 Tags are stored as a JSON-encoded string in `tags` (TEXT).
 
 Date ranges:
